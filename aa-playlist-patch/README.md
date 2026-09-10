@@ -43,6 +43,19 @@ Home은 9.15.51에서 관찰한 두 카드 형식만 지원한다. 서버 형식
 
 개인 계정 응답, 스크린샷, APK 및 서명 키는 소스에 포함하지 않는다.
 
+## Service-only playback and Galaxy Modes
+
+Additional v8 checks on 2026-09-10 used Android 16 and Samsung Modes and Routines 5.0.04.0. These exercise native `onPlay()` queue restoration, separately from DHU's `onPlayFromMediaId()` path and the browse bridge.
+
+- With the service available and playback paused, a manually triggered mode targeting the test app resumed playback and advanced its position.
+- After `am kill` terminated the background process without setting the package's stopped state, Android recreated `MusicBrowserService` before the next manual mode ran. That mode restored the saved queue and resumed playback. `BackgroundPlayerService` reported `isForeground=true` with the media playback service type. This does not prove that Modes alone can start an absent process.
+- A manual mode did not recover the force-stopped app. A separate privileged shell request did: starting the foreground `MusicBrowserService` with `ACTION_MEDIA_BUTTON`, a PLAY key event, and `FLAG_INCLUDE_STOPPED_PACKAGES` restored the saved 25-entry queue and advanced playback without launching an Activity or creating a hidden display.
+- Starting the service without a media event prepared an inactive session. An ordinary background `startService` request was rejected. One warm-service playback attempt also logged foreground-service restriction warnings, so short playback success must not be generalized to long-term service persistence.
+
+No browse-patch implementation change was needed for these tests. Native queue restoration already works with the v8 patch set; this result does not add force-stop recovery to the built-in mode action. The privileged startup path has not been integrated into phone-only vehicle automation. Android Auto automatic music start remained off, and playback was paused after testing.
+
+Long locked-screen playback, connection-trigger timing, actual vehicle behavior, and audible output remain unverified. Keep force-stop and normal process termination as separate test cases; see [Android stopped-state changes](https://developer.android.com/about/versions/15/behavior-changes-all#stopped-state). Private diagnostics and extracted application code are excluded from this repository's tracked sources.
+
 ## 출처
 
 [Morphe PR #2489](https://github.com/MorpheApp/morphe-patches/pull/2489)의 기여 코드를 바탕으로 확장했다. 참고 커밋은 zappybiby/morphe-patches의 `9df878a71fea5ca618d04fd05ac771be761818c5`이다. 해당 PR은 병합되지 않았으며 이 구현은 공식 Morphe 배포를 의미하지 않는다. 원본 저작권 표시 및 루트 `NOTICE`/`LICENSE`를 유지한다.
